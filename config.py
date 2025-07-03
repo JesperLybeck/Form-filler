@@ -16,7 +16,7 @@ class business_data(BaseModel):
     logo: str
     coverImage: str
     established: str
-    socialMedia: dict
+    #socialMedia: dict usually problematic as it often produces unhashable types.
 
 
 
@@ -24,7 +24,7 @@ class business_data(BaseModel):
 BUSINESS_DATA_FIELDS = list(business_data.model_fields.keys())
 
 #firecrawl configuration
-CRAWLER_MAX_PAGES=4
+CRAWLER_MAX_PAGES=2
 CRAWLER_TIMEOUT=30
 
 

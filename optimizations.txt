@@ -1,0 +1,55 @@
+import asyncio
+
+async def producer(urls, queue):
+    for url in urls:
+        print(f"[Producer] Starting scrape: {url}")
+        html = await async_scrape_page(url)   # Async scrape, e.g. Firecrawl async call
+        print(f"[Producer] Finished scrape: {url}")
+        await queue.put((url, html))          # Put the result into the queue
+    await queue.put(None)  # Sentinel to signal consumers no more items
+
+async def consumer(queue):
+    while True:
+        item = await queue.get()              # Wait for a new scraped page
+        if item is None:                      # Sentinel received, terminate
+            queue.task_done()
+            break
+
+        url, html = item
+        print(f"[Consumer] Extracting data from: {url}")
+
+        # Extraction can be CPU-bound - run in executor if needed
+        loop = asyncio.get_running_loop()
+        extracted_data = await loop.run_in_executor(None, extract_data, html)
+
+        # Optionally prompt LLM asynchronously
+        llm_result = await async_llm_prompt(extracted_data)
+
+        print(f"[Consumer] Completed extraction for: {url}")
+        queue.task_done()
+
+async def main(urls):
+    queue = asyncio.Queue(maxsize=5)  # Bounded queue to control memory & backpressure
+
+    # Start the producer coroutine
+    producer_task = asyncio.create_task(producer(urls, queue))
+
+    # Start one or more consumers (adjust concurrency by increasing number)
+    consumers = [asyncio.create_task(consumer(queue)) for _ in range(3)]
+
+    # Wait for producer to finish producing
+    await producer_task
+
+    # Wait for all items to be processed by consumers
+    await queue.join()
+
+    # Send sentinel None to consumers to terminate them (already sent by producer)
+    for c in consumers:
+        await queue.put(None)
+
+    # Wait for all consumers to exit cleanly
+    await asyncio.gather(*consumers)
+
+if __name__ == "__main__":
+    urls_to_process = ["url1", "url2", "url3", "url4", "url5"]
+    asyncio.run(main(urls_to_process))

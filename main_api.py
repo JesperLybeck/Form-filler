@@ -32,7 +32,7 @@ def create_url(url: str = Query(...)):
 
 @app.post("/initialize_extraction_pipeline") 
 def initialize_extraction_pipeline():
-    global crawler, chunker
+    global crawler, chunker, URL
     
     
     try:
@@ -61,26 +61,64 @@ def initialize_extraction_pipeline():
             "crawler_ready": False,
             "chunker_ready": False
         }
+    
+@app.post("/get_relevant_urls")
+def get_relevant_urls():
+    global crawler
+    if crawler is None:
+        initialize_extraction_pipeline()
+    relevant_urls = crawler.get_ranked_urls()
 
+    return relevant_urls
+"""
+@app.post("start_extraction_priority_crawl")
+def start_extraction_priority_crawl():
+    global extracted_data, html_content
+    crawler.prioritized_crawl()
+    """
+    
+   
+
+import time
+import traceback
 
 @app.post("/start_extraction")
 def start_extraction():
     global extracted_data, html_content
 
     try:
+        start_total = time.time()
+        
+        print("[start_extraction] Starting extraction pipeline")
+
+        start_init = time.time()
         if crawler is None or chunker is None:
+            print("[start_extraction] Initializing pipeline...")
             init_result = initialize_extraction_pipeline()
+        else:
+            init_result = None
+        end_init = time.time()
+        print(f"[start_extraction] Initialization took {end_init - start_init:.3f} seconds")
 
         if crawler is None or chunker is None:
-                return {"error": "Pipeline initialization failed", "details": str(init_result)}
-        
-        result = crawler.crawl_site()
+            return {"error": "Pipeline initialization failed", "details": str(init_result)}
+
+        start_crawl = time.time()
+        result = crawler.prioritized_crawl()
+        end_crawl = time.time()
+        print(f"[start_extraction] Crawling took {end_crawl - start_crawl:.3f} seconds")
+
         html_content = []
-        for page in result.data:
+        start_html_collect = time.time()
+        for page in result:
             if hasattr(page, 'html') and page.html:
                 html_content.append(page.html)
+        end_html_collect = time.time()
+        print(f"[start_extraction] Collecting HTML content took {end_html_collect - start_html_collect:.3f} seconds")
 
         chunks = html_content  
+
+        start_extract = time.time()
         extractor = FieldExtractor(
             field_names=config.BUSINESS_DATA_FIELDS, 
             data_chunks=chunks, 
@@ -88,9 +126,14 @@ def start_extraction():
         )
         extracted_info = extractor.extract_company_info()
         extracted_data = extractor.aggregate_results(extracted_info)
-        
+        end_extract = time.time()
+        print(f"[start_extraction] Data extraction took {end_extract - start_extract:.3f} seconds")
+
         if hasattr(extractor, 'pretty_print_extracted_data'):
             extractor.pretty_print_extracted_data(extracted_data)
+
+        end_total = time.time()
+        print(f"[start_extraction] Total extraction pipeline took {end_total - start_total:.3f} seconds")
 
         return {
             "message": "Extraction completed successfully",
@@ -107,6 +150,7 @@ def start_extraction():
             "status": "failed",
             "traceback": traceback.format_exc()
         }
+
 
 
 @app.get("/get_fields", response_model=config.business_data)  
