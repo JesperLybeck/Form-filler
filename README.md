@@ -8,7 +8,8 @@ A FastAPI-based service that automatically extracts business information from co
 - **AI Extraction**: Uses gpt-4o-mini to extract structured business data
 - **Structured Output**: Returns clean, standardized business information
 - **RESTful API**: Easy-to-use HTTP endpoints
-- **Concurrent scraping and extraction**:
+- **Concurrent scraping and extraction**: based on producer-consumer pattern with asyncio and threading for efficient data processing.
+- **Easy configuration**: add fields and keywords in the configuration file.
 
 ## Extracted Data Fields are provided as a pydantic basemodel
 
@@ -16,28 +17,18 @@ A FastAPI-based service that automatically extracts business information from co
 
 - Python 3.11 or higher
 - Firecrawl API key
-- Google Gemini API key
+- GPT-4o-Mini API key
 
 ### Installation
 
 1. **Clone the repository**
-   ```bash
-   git clone https://github.com/yourusername/formfiller.git
-   cd formfiller
-   ```
+ 
 
 2. **Install dependencies**
 
 3. **Set up environment variables**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your API keys
-   ```
 
 4. **Start the server**
-   ```bash
-   python -m uvicorn main_api:app --reload
-   ```
 
 5. **Open the API documentation**
    ```
@@ -50,7 +41,7 @@ Create a `.env` file with your API keys:
 
 ```env
 FIRECRAWL_API_KEY=your_firecrawl_api_key_here
-LLM_API_KEY=your_google_gemini_api_key_here
+LLM_API_KEY=your_gpt-4o-mini_api_key_here
 ```
 
 ## API Usage
@@ -58,7 +49,3 @@ LLM_API_KEY=your_google_gemini_api_key_here
 ### Single endpoint: /extract_data that takes a URL and returns structured business data.
 
 ## Architecture
-
-```
-User Request → FastAPI → Firecrawl → HTML Processing → gpt-4o-mini → Structured Data
-```
