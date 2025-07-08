@@ -1,25 +1,16 @@
-# 🏢 Form Filler - Business Data Extraction API
+# Form Filler - Business Data Extraction API
 
 A FastAPI-based service that automatically extracts business information from company websites using AI-powered web crawling and data extraction.
 
-## ✨ Features
+## Key concepts
 
-- 🌐 **Web Crawling**: Automatically crawls company websites using Firecrawl
-- 🤖 **AI Extraction**: Uses Google Gemini to extract structured business data
-- 📊 **Structured Output**: Returns clean, standardized business information
-- 🔧 **RESTful API**: Easy-to-use HTTP endpoints
-- ⚡ **Fast Processing**: Optimized for quick data extraction
+- **Web Crawling**: uses a customized scraping logic based on firecrawls /scrape and /map endpoints.
+- **AI Extraction**: Uses gpt-4o-mini to extract structured business data
+- **Structured Output**: Returns clean, standardized business information
+- **RESTful API**: Easy-to-use HTTP endpoints
+- **Concurrent scraping and extraction**:
 
-## 📋 Extracted Data Fields
-
-- Company name and type
-- Contact information (phone, email, address)
-- Website and social media links
-- Business description
-- Organization details
-- Logo and cover images
-
-## 🚀 Quick Start
+## Extracted Data Fields are provided as a pydantic basemodel
 
 ### Prerequisites
 
@@ -36,9 +27,6 @@ A FastAPI-based service that automatically extracts business information from co
    ```
 
 2. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
 
 3. **Set up environment variables**
    ```bash
@@ -56,57 +44,21 @@ A FastAPI-based service that automatically extracts business information from co
    http://127.0.0.1:8000/docs
    ```
 
-## 🔧 Configuration
+## Configuration
 
 Create a `.env` file with your API keys:
 
 ```env
 FIRECRAWL_API_KEY=your_firecrawl_api_key_here
-GOOGLE_API_KEY=your_google_gemini_api_key_here
 LLM_API_KEY=your_google_gemini_api_key_here
 ```
 
-## 📖 API Usage
+## API Usage
 
-### 1. Initialize the Pipeline
-```http
-POST /initialize_extraction_pipeline
-```
+### Single endpoint: /extract_data that takes a URL and returns structured business data.
 
-### 2. Set Target URL
-```http
-POST /setURL?url=https://company-website.com
-```
-
-### 3. Start Extraction
-```http
-POST /start_extraction
-```
-
-### 4. Get Results
-```http
-GET /get_fields
-```
-
-## 🏗️ Architecture
+## Architecture
 
 ```
-User Request → FastAPI → Firecrawl → HTML Processing → Gemini AI → Structured Data
+User Request → FastAPI → Firecrawl → HTML Processing → gpt-4o-mini → Structured Data
 ```
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
-
-## 📄 License
-
-This project is licensed under the MIT License.
-
-## 🔗 Links
-
-- [Firecrawl API](https://firecrawl.dev/)
-- [Google Gemini](https://ai.google.dev/)
-- [FastAPI Documentation](https://fastapi.tiangolo.com/)

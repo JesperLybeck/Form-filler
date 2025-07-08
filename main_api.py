@@ -1,6 +1,5 @@
 import os
 from fastapi import FastAPI
-from fastapi import Query
 from dotenv import load_dotenv
 import config
 from concurrent_extraction import AsynchronousExtraction
@@ -9,39 +8,13 @@ import time
 
 load_dotenv()
 app = FastAPI()
-URL = "https://scoped.no"
-FIRECRAWL_API_KEY = os.getenv("FIRECRAWL_API_KEY")
-LLM_API_KEY = os.getenv("LLM_API_KEY")
-crawler = None
-chunker = None
-extracted_data = None
-html_content = None
 
 @app.get("/")
 async def root():
     return {"message": "Successful connection to Form Filler API",}
 
 
-@app.post("/setURL")
-def create_url(url: str = Query(...)):
-    global URL
-    URL = url
-    return {"message": f"URL updated to {URL}"}
-
-
-
-@app.get("/get_fields", response_model=config.business_data)  
-def get_extracted_data() -> config.business_data:
-    if extracted_data is None:
-        
-        return config.business_data(
-            name="", orgNumber="", type="", description="", website="",
-            phone="", email="", address="", postalCode="", city="",
-            country="", logo="", coverImage="", established="", socialMedia={}
-        )
-    return extracted_data
-
-@app.get("/get_async_extraction")
+@app.get("/extract_data")
 async def run_pipeline_for_site(url: str):
     # Start overall timing
     start_time = time.time()

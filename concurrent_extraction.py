@@ -202,3 +202,7 @@ def clean_response(response_text):
         print(f"[clean_response] JSON parse failed: {e}")
         print(f"Raw content: {content}")
         return {}
+
+
+#POTENTIAL IMPROVEMENTS
+#add weights to heuristic keywords, e.g. "about": 5, "contact": 3
