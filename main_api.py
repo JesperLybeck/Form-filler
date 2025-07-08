@@ -8,6 +8,8 @@ import HTML_chunker as chnk
 from field_extractor import FieldExtractor
 import config
 import traceback
+from concurrent_extraction import AsynchronousExtraction
+import asyncio
 
 load_dotenv()
 app = FastAPI()
@@ -168,3 +170,32 @@ def get_extracted_data() -> config.business_data:
 
 
 
+
+@app.get("/get_async_extraction")
+async def run_pipeline_for_site(url: str):
+    try:
+        extractor = AsynchronousExtraction(root_url=url)
+        print("extractor created...")
+        
+        prioritized_urls = extractor.get_relevant_pages()
+        print("relevant pages retrieved:", prioritized_urls)
+
+        if not prioritized_urls:
+            print("No relevant pages found.")
+            return {"error": "No relevant pages found"}
+
+        extraction_queue = asyncio.Queue()
+        result_list = []
+        done_event = asyncio.Event()
+
+        await asyncio.gather(
+            extractor.async_scraper(prioritized_urls, extraction_queue),
+            extractor.async_extractor(extraction_queue, result_list, done_event)
+        )
+
+        aggregated = await extractor.aggregate_results(result_list, done_event)
+        return aggregated or {"message": "No data extracted"}
+        
+    except Exception as e:
+        print(f"Error in pipeline: {e}")
+        return {"error": str(e)}
