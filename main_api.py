@@ -2,14 +2,10 @@ import os
 from fastapi import FastAPI
 from fastapi import Query
 from dotenv import load_dotenv
-from firecrawl_client import FirecrawlClient
-from config import *
-import HTML_chunker as chnk
-from field_extractor import FieldExtractor
 import config
-import traceback
 from concurrent_extraction import AsynchronousExtraction
 import asyncio
+import time
 
 load_dotenv()
 app = FastAPI()
@@ -32,127 +28,6 @@ def create_url(url: str = Query(...)):
     URL = url
     return {"message": f"URL updated to {URL}"}
 
-@app.post("/initialize_extraction_pipeline") 
-def initialize_extraction_pipeline():
-    global crawler, chunker, URL
-    
-    
-    try:
-        
-        crawler = FirecrawlClient(
-            api_key=FIRECRAWL_API_KEY,
-            max_pages=config.CRAWLER_MAX_PAGES,
-            url=URL
-        )
-        
-        
-        chunker = chnk.HTMLChunker()
-        chunker.max_chunk_size = config.CHUNKER_MAX_CHUNK_SIZE
-        chunker.min_chunk_size = config.CHUNKER_MIN_CHUNK_SIZE
-        
-        return {
-            "message": f"Pipeline initialized for {URL}",
-            "status": "ready",
-            "crawler_ready": True,
-            "chunker_ready": True
-        }
-    except Exception as e:
-        return {
-            "message": f"Initialization failed: {str(e)}",
-            "status": "error",
-            "crawler_ready": False,
-            "chunker_ready": False
-        }
-    
-@app.post("/get_relevant_urls")
-def get_relevant_urls():
-    global crawler
-    if crawler is None:
-        initialize_extraction_pipeline()
-    relevant_urls = crawler.get_ranked_urls()
-
-    return relevant_urls
-"""
-@app.post("start_extraction_priority_crawl")
-def start_extraction_priority_crawl():
-    global extracted_data, html_content
-    crawler.prioritized_crawl()
-    """
-    
-   
-
-import time
-import traceback
-
-@app.post("/start_extraction")
-def start_extraction():
-    global extracted_data, html_content
-
-    try:
-        start_total = time.time()
-        
-        print("[start_extraction] Starting extraction pipeline")
-
-        start_init = time.time()
-        if crawler is None or chunker is None:
-            print("[start_extraction] Initializing pipeline...")
-            init_result = initialize_extraction_pipeline()
-        else:
-            init_result = None
-        end_init = time.time()
-        print(f"[start_extraction] Initialization took {end_init - start_init:.3f} seconds")
-
-        if crawler is None or chunker is None:
-            return {"error": "Pipeline initialization failed", "details": str(init_result)}
-
-        start_crawl = time.time()
-        result = crawler.prioritized_crawl()
-        end_crawl = time.time()
-        print(f"[start_extraction] Crawling took {end_crawl - start_crawl:.3f} seconds")
-
-        html_content = []
-        start_html_collect = time.time()
-        for page in result:
-            if hasattr(page, 'html') and page.html:
-                html_content.append(page.html)
-        end_html_collect = time.time()
-        print(f"[start_extraction] Collecting HTML content took {end_html_collect - start_html_collect:.3f} seconds")
-
-        chunks = html_content  
-
-        start_extract = time.time()
-        extractor = FieldExtractor(
-            field_names=config.BUSINESS_DATA_FIELDS, 
-            data_chunks=chunks, 
-            field_descriptions={}
-        )
-        extracted_info = extractor.extract_company_info()
-        extracted_data = extractor.aggregate_results(extracted_info)
-        end_extract = time.time()
-        print(f"[start_extraction] Data extraction took {end_extract - start_extract:.3f} seconds")
-
-        if hasattr(extractor, 'pretty_print_extracted_data'):
-            extractor.pretty_print_extracted_data(extracted_data)
-
-        end_total = time.time()
-        print(f"[start_extraction] Total extraction pipeline took {end_total - start_total:.3f} seconds")
-
-        return {
-            "message": "Extraction completed successfully",
-            "status": "completed",
-            "pages_processed": len(html_content),
-            "fields_extracted": list(extracted_data.keys()) if extracted_data else [],
-            "data_preview": str(extracted_data)[:200] + "..." if extracted_data else "No data"
-        }
-        
-    except Exception as e:
-        error_msg = f"Extraction failed: {str(e)}"
-        return {
-            "error": error_msg,
-            "status": "failed",
-            "traceback": traceback.format_exc()
-        }
-
 
 
 @app.get("/get_fields", response_model=config.business_data)  
@@ -166,24 +41,34 @@ def get_extracted_data() -> config.business_data:
         )
     return extracted_data
 
-
-
-
-
-
 @app.get("/get_async_extraction")
 async def run_pipeline_for_site(url: str):
+    # Start overall timing
+    start_time = time.time()
+    
     try:
-        extractor = AsynchronousExtraction(root_url=url)
-        print("extractor created...")
+        print(f"[Pipeline] Starting extraction for: {url}")
         
+        # Time extractor creation
+        extractor_start = time.time()
+        extractor = AsynchronousExtraction(root_url=url)
+        extractor_time = time.time() - extractor_start
+        print(f"[Timing] Extractor created in {extractor_time:.2f}s")
+        
+        # Time URL discovery
+        url_start = time.time()
         prioritized_urls = extractor.get_relevant_pages()
-        print("relevant pages retrieved:", prioritized_urls)
+        url_time = time.time() - url_start
+        print(f"[Timing] URL discovery took {url_time:.2f}s")
+        print(f"[Pipeline] Found {len(prioritized_urls)} relevant pages: {prioritized_urls}")
 
         if not prioritized_urls:
-            print("No relevant pages found.")
+            total_time = time.time() - start_time
+            print(f"[Timing] Total time: {total_time:.2f}s (no pages found)")
             return {"error": "No relevant pages found"}
 
+        # Time scraping and extraction
+        extraction_start = time.time()
         extraction_queue = asyncio.Queue()
         result_list = []
         done_event = asyncio.Event()
@@ -192,10 +77,23 @@ async def run_pipeline_for_site(url: str):
             extractor.async_scraper(prioritized_urls, extraction_queue),
             extractor.async_extractor(extraction_queue, result_list, done_event)
         )
+        extraction_time = time.time() - extraction_start
+        print(f"[Timing] Scraping + extraction took {extraction_time:.2f}s")
 
+        # Time aggregation
+        aggregation_start = time.time()
         aggregated = await extractor.aggregate_results(result_list, done_event)
+        aggregation_time = time.time() - aggregation_start
+        print(f"[Timing] Aggregation took {aggregation_time:.2f}s")
+        
+        # Calculate total time
+        total_time = time.time() - start_time
+        print(f"[Timing] Total pipeline time: {total_time:.2f}s")
+        
+        # Return clean result without timing
         return aggregated or {"message": "No data extracted"}
         
     except Exception as e:
-        print(f"Error in pipeline: {e}")
+        total_time = time.time() - start_time
+        print(f"[Timing] Error after {total_time:.2f}s: {e}")
         return {"error": str(e)}

@@ -8,6 +8,7 @@ from firecrawl import FirecrawlApp
 from openai import OpenAI, AsyncOpenAI
 from dotenv import load_dotenv
 import config
+from datetime import datetime
 
 load_dotenv()
 
@@ -29,12 +30,14 @@ class AsynchronousExtraction:
     def get_relevant_pages(self) -> list[str]:
         sitemap_result = self.firecrawl_app.map_url(self.root_url)
         relevant_pages = sitemap_result.links
+        print(relevant_pages)
 
         # Heuristic matching
         relevant_urls = [
             url for url in relevant_pages
             if any(kw in url.lower() for kw in config.heuristic_keywords)
         ]
+        print("Heuristic matches:", relevant_urls)
 
         if len(relevant_urls) >= config.CRAWLER_MAX_PAGES:
             print(f"Found {len(relevant_urls)} heuristic matches. Deduplicating and returning top {config.CRAWLER_MAX_PAGES} URLs.")
@@ -88,6 +91,10 @@ class AsynchronousExtraction:
         )
         print(f"[Extractor] received response from LLM")
         return clean_response(result.choices[0].message.content)
+    
+
+
+  
 
     async def scrape_page_async(self, url: str):
         print(f"[Scraper Task] Scraping: {url}")
@@ -95,10 +102,15 @@ class AsynchronousExtraction:
             self.firecrawl_app.scrape_url,
             url,
             formats=['html'],
-            maxAge=3600000
+            maxAge=3600000,
+            onlyMainContent=False
         )
         print(f"[Scraper Task] Finished scraping: {url}")
+        
+        
         return scrape_result
+
+   
 
     async def async_scraper(self, urls: list[str], extraction_queue: asyncio.Queue):
         print("[Scraper] Starting async scraping...")

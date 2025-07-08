@@ -41,7 +41,7 @@ heuristic_keywords = [
 
     # Secondary — often contain contact/address/branding details
     "kontakt-oss", "get-in-touch", "reach-us", "contact-us", "find-us",
-    "location", "locations", "besøk", "visit", "map", "address", "adresse",
+    "location", "locations", "besøk", "visit", "address", "adresse",
     "headquarters", "hq", "kontor", "offices", "directions",
 
     # Branding/media — may contain logo, cover image
